@@ -10,7 +10,7 @@ app.use(express.json());
 const productManager = new ProductManager();
 const cartManager = new CartManager();
 
-// esperar inicialización de managers antes de exponer rutas y antes de arrancar servidor
+// esperar inicialización 
 await productManager.init();
 await cartManager.init();
 

@@ -1,16 +1,35 @@
 import express from 'express';
 import { ProductManager } from './ProductManager.js';
 import { CartManager } from './CartManager.js';
+import handlebars from 'express-handlebars';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Inicializar managers
+app.engine('handlebars', handlebars.engine());
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'handlebars');
+app.use(express.static(path.join(__dirname, 'views')));
+
+app.get("/", (req, res) => {
+  let testUser = {
+    name: "Exequiel",
+    last_name: "Dearmas"
+  };
+  res.render("app", testUser);
+});
+
+
 const productManager = new ProductManager();
 const cartManager = new CartManager();
 
-// esperar inicialización 
 await productManager.init();
 await cartManager.init();
 

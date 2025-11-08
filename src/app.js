@@ -4,6 +4,7 @@ import { CartManager } from './CartManager.js';
 import handlebars from 'express-handlebars';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import viewRouter from './routes/view.route.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,7 @@ const cartsRouter = express.Router();
 // Configurar routers
 app.use('/api/products', productsRouter);
 app.use('/api/carts', cartsRouter);
+app.use('/', viewRouter);
 
 // Routes para productos
 productsRouter.get('/', async (req, res) => {

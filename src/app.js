@@ -3,11 +3,26 @@ import { ProductManager } from './ProductManager.js';
 import { CartManager } from './CartManager.js';
 import handlebars from 'express-handlebars';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 import path from 'path';
 import viewRouter from './routes/view.route.js';
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const storageConfig = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, 'public', 'images')); 
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();                   
+    const originalname = file.originalname;
+    cb(null, `${timestamp}-${originalname}`);
+  }
+});
+const upload = multer({ storage: storageConfig });
+
 
 const app = express();
 
@@ -121,6 +136,13 @@ cartsRouter.post('/:cid/product/:pid', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+
+app.post('/upload', upload.single('archivo'), (req, res) => {
+  if (!req.file) return res.status(400).send('No se subió archivo');
+  res.json({ message: 'Archivo subido correctamente', file: req.file });
+});
+
+// Iniciar el servidor
 
 app.listen(8080, () => {
   console.log("Servidor ejecutándose en puerto 8080");

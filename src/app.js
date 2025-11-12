@@ -5,26 +5,27 @@ import handlebars from 'express-handlebars';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import path from 'path';
+import http from 'http';
+import { Server as IOServer } from 'socket.io';
 import viewRouter from './routes/view.route.js';
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const app = express();
+
+// multer storage (usa __dirname)
 const storageConfig = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'public', 'images')); 
+    cb(null, path.join(__dirname, 'public', 'images'));
   },
   filename: (req, file, cb) => {
-    const timestamp = Date.now();                   
+    const timestamp = Date.now();
     const originalname = file.originalname;
     cb(null, `${timestamp}-${originalname}`);
   }
 });
 const upload = multer({ storage: storageConfig });
-
-
-const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -39,20 +40,40 @@ app.set('view engine', 'handlebars');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// sockets — crear httpServer e io DESPUÉS de app
+const httpServer = http.createServer(app);
+const io = new IOServer(httpServer);
+
+let messages = [];
+
+// Configuración de Socket.io
+io.on('connection', (socket) => {
+  socket.emit('messageList', messages);
+  console.log('Nuevo cliente conectado', socket.id);
+
+  socket.on('newMessage', (message) => {
+    messages.push(message);
+    io.emit('newMessage', {
+      socketId: socket.id,
+      message: message
+    });
+  });
+});
+
 app.get("/", (req, res) => {
   let testUser = {
+    title: 'Inicio',
     name: "Exequiel",
     last_name: "Dearmas"
   };
   res.render("app", testUser);
 });
 
-
 const productManager = new ProductManager();
 const cartManager = new CartManager();
 
 await productManager.init();
-await cartManager.init();
+if (typeof cartManager.init === 'function') await cartManager.init();
 
 // Routers
 const productsRouter = express.Router();
@@ -142,8 +163,8 @@ app.post('/upload', upload.single('archivo'), (req, res) => {
   res.json({ message: 'Archivo subido correctamente', file: req.file });
 });
 
-// Iniciar el servidor
-
-app.listen(8080, () => {
-  console.log("Servidor ejecutándose en puerto 8080");
+// Iniciar el servidor (usar httpServer para sockets)
+const PORT = process.env.PORT || 8080;
+httpServer.listen(PORT, () => {
+  console.log(`Servidor ejecutándose en puerto ${PORT}`);
 });

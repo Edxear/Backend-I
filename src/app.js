@@ -163,7 +163,7 @@ app.post('/upload', upload.single('archivo'), (req, res) => {
   res.json({ message: 'Archivo subido correctamente', file: req.file });
 });
 
-// Iniciar el servidor (usar httpServer para sockets)
+// Iniciar el servidor
 const PORT = process.env.PORT || 8080;
 httpServer.listen(PORT, () => {
   console.log(`Servidor ejecutándose en puerto ${PORT}`);

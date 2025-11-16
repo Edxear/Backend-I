@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// multer storage (usa __dirname)
+// multer storage
 const storageConfig = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.join(__dirname, 'public', 'images'));
@@ -40,7 +40,6 @@ app.set('view engine', 'handlebars');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// sockets — crear httpServer e io DESPUÉS de app
 const httpServer = http.createServer(app);
 const io = new IOServer(httpServer);
 
@@ -69,11 +68,60 @@ app.get("/", (req, res) => {
   res.render("app", testUser);
 });
 
+// Página home con listado de productos
+app.get('/home', async (req, res) => {
+  try {
+    const products = await productManager.getProducts();
+    res.render('home', { products });
+  } catch (err) {
+    res.status(500).send('Error al cargar productos');
+  }
+});
+
 const productManager = new ProductManager();
 const cartManager = new CartManager();
 
 await productManager.init();
 if (typeof cartManager.init === 'function') await cartManager.init();
+
+// Socket handlers relacionados con productos
+io.on('connection', (socket) => {
+  productManager.getProducts().then(products => {
+    socket.emit('updateProducts', products);
+  }).catch(() => {});
+
+  
+  socket.on('requestProducts', async () => {
+    try {
+      const products = await productManager.getProducts();
+      socket.emit('updateProducts', products);
+    } catch (err) {
+     
+    }
+  });
+
+  // Crear producto vía websocket
+  socket.on('createProduct', async (productData) => {
+    try {
+      await productManager.addProduct(productData);
+      const products = await productManager.getProducts();
+      io.emit('updateProducts', products);
+    } catch (err) {
+      socket.emit('errorCreate', err.message);
+    }
+  });
+
+  // Eliminar producto vía websocket (recibe id)
+  socket.on('deleteProduct', async (productId) => {
+    try {
+      await productManager.deleteProduct(productId);
+      const products = await productManager.getProducts();
+      io.emit('updateProducts', products);
+    } catch (err) {
+      socket.emit('errorDelete', err.message);
+    }
+  });
+});
 
 // Routers
 const productsRouter = express.Router();
@@ -105,7 +153,9 @@ productsRouter.get('/:pid', async (req, res) => {
 
 productsRouter.post('/', async (req, res) => {
   try {
-    const newProduct = await productManager.addProduct(req.body);
+    const newProduct = await productManager.addProduct(req.body); 
+    const products = await productManager.getProducts();
+    io.emit('updateProducts', products);
     res.status(201).json({ payload: newProduct, message: "Producto creado correctamente" });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -124,6 +174,8 @@ productsRouter.put('/:pid', async (req, res) => {
 productsRouter.delete('/:pid', async (req, res) => {
   try {
     const deletedProduct = await productManager.deleteProduct(req.params.pid);
+    const products = await productManager.getProducts();
+    io.emit('updateProducts', products);
     res.json({ payload: deletedProduct, message: "Producto eliminado correctamente" });
   } catch (error) {
     res.status(400).json({ error: error.message });

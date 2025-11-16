@@ -9,12 +9,14 @@ route.get('/perfil', (req, res) => {
         isAdmin: true,
         notas: [{curso: "javascript", nota:10},{curso: 'html', nota:9}, {curso:'css', nota:6}, {curso:'react', nota: 3}]
     }) 
-    // primer parametro -> define la vista index.handlebars
-    // segundo parametro -> data que va a recibir la vista
 })
 
 route.get('/socket', (req, res) => {
     res.render('chat',{})
+})
+
+route.get('/realtimeproducts', (req, res) => {
+    res.render('realTimeProducts', {});
 })
 
 export default route;

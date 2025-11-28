@@ -1,18 +1,47 @@
 import express from 'express';
-import { ProductManager } from './ProductManager.js';
-import { CartManager } from './CartManager.js';
+import mongoose from 'mongoose';
 import handlebars from 'express-handlebars';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import path from 'path';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
+import 'dotenv/config.js';
 import viewRouter from './routes/view.route.js';
+import productRouter from './routes/product.route.js';
+import cartRouter from './routes/carts.route.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// MongoDB Connection
+const MONGO_URL = process.env.MONGO_URL;
+
+if (!MONGO_URL) {
+  console.error(' MONGO_URL no está definida en .env');
+  process.exit(1);
+}
+
+mongoose.connect(MONGO_URL, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
+  .then(() => {
+    console.log(' MongoDB conectado correctamente');
+    console.log(' Base de datos: Ecommerce');
+  })
+  .catch((err) => {
+    console.error(' Error de conexión a MongoDB:', err.message);
+    console.error(' Verifica:');
+    console.error('   1. MONGO_URL está correcta en .env');
+    console.error('   2. IP está en whitelist de Atlas (Network Access)');
+    console.error('   3. Usuario y contraseña son correctos');
+    process.exit(1);
+  });
+
+
 
 // multer storage
 const storageConfig = multer.diskStorage({
@@ -68,155 +97,62 @@ app.get("/", (req, res) => {
   res.render("app", testUser);
 });
 
-// Página home con listado de productos
-app.get('/home', async (req, res) => {
-  try {
-    const products = await productManager.getProducts();
-    res.render('home', { products });
-  } catch (err) {
-    res.status(500).send('Error al cargar productos');
-  }
-});
-
-const productManager = new ProductManager();
-const cartManager = new CartManager();
-
-await productManager.init();
-if (typeof cartManager.init === 'function') await cartManager.init();
-
-// Socket handlers relacionados con productos
+// Socket handlers para actualizar productos en tiempo real
 io.on('connection', (socket) => {
-  productManager.getProducts().then(products => {
-    socket.emit('updateProducts', products);
-  }).catch(() => {});
+  console.log('Nuevo cliente conectado:', socket.id);
 
-  
   socket.on('requestProducts', async () => {
     try {
-      const products = await productManager.getProducts();
+      const ProductModel = (await import('./model/Product.model.js')).default;
+      const products = await ProductModel.find();
       socket.emit('updateProducts', products);
     } catch (err) {
-     
-    }
-  });
-
-  // Crear producto vía websocket
-  socket.on('createProduct', async (productData) => {
-    try {
-      await productManager.addProduct(productData);
-      const products = await productManager.getProducts();
-      io.emit('updateProducts', products);
-    } catch (err) {
-      socket.emit('errorCreate', err.message);
-    }
-  });
-
-  // Eliminar producto vía websocket (recibe id)
-  socket.on('deleteProduct', async (productId) => {
-    try {
-      await productManager.deleteProduct(productId);
-      const products = await productManager.getProducts();
-      io.emit('updateProducts', products);
-    } catch (err) {
-      socket.emit('errorDelete', err.message);
+      console.error('Error al obtener productos:', err);
     }
   });
 });
-
-// Routers
-const productsRouter = express.Router();
-const cartsRouter = express.Router();
 
 // Configurar routers
-app.use('/api/products', productsRouter);
-app.use('/api/carts', cartsRouter);
+app.use('/api/products', productRouter);
+app.use('/api/carts', cartRouter);
 app.use('/', viewRouter);
 
-// Routes para productos
-productsRouter.get('/', async (req, res) => {
-  try {
-    const products = await productManager.getProducts();
-    res.json({ payload: products });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Importar rutas opcionales (si existen y están configuradas)
+try {
+  const { default: OrdersRoute } = await import('./routes/Orders.route.js');
+  app.use('/api/orders', OrdersRoute);
+  console.log('Ruta Orders cargada');
+} catch (err) {
+  console.warn('Ruta Orders no disponible');
+}
 
-productsRouter.get('/:pid', async (req, res) => {
-  try {
-    const product = await productManager.getProductById(req.params.pid);
-    res.json({ payload: product });
-  } catch (error) {
-    res.status(404).json({ error: error.message });
-  }
-});
-
-productsRouter.post('/', async (req, res) => {
-  try {
-    const newProduct = await productManager.addProduct(req.body); 
-    const products = await productManager.getProducts();
-    io.emit('updateProducts', products);
-    res.status(201).json({ payload: newProduct, message: "Producto creado correctamente" });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-productsRouter.put('/:pid', async (req, res) => {
-  try {
-    const updatedProduct = await productManager.updateProduct(req.params.pid, req.body);
-    res.json({ payload: updatedProduct, message: "Producto actualizado correctamente" });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-productsRouter.delete('/:pid', async (req, res) => {
-  try {
-    const deletedProduct = await productManager.deleteProduct(req.params.pid);
-    const products = await productManager.getProducts();
-    io.emit('updateProducts', products);
-    res.json({ payload: deletedProduct, message: "Producto eliminado correctamente" });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// Routes para carritos
-cartsRouter.post('/', async (req, res) => {
-  try {
-    const newCart = await cartManager.createCart();
-    res.status(201).json({ payload: newCart, message: 'Carrito creado correctamente' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-cartsRouter.get('/:cid', async (req, res) => {
-  try {
-    const cart = await cartManager.getCartById(req.params.cid);
-    res.json({ payload: cart });
-  } catch (error) {
-    res.status(404).json({ error: error.message });
-  }
-});
-
-cartsRouter.post('/:cid/product/:pid', async (req, res) => {
-  try {
-    const cart = await cartManager.addProductToCart(req.params.cid, req.params.pid);
-    res.json({ payload: cart, message: 'Producto agregado al carrito correctamente' });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+try {
+  const { default: AlumnosRoute } = await import('./routes/Alumnos.route.js');
+  app.use('/api/alumnos', AlumnosRoute);
+  console.log('Ruta Alumnos cargada');
+} catch (err) {
+  console.warn('Ruta Alumnos no disponible');
+}
 
 app.post('/upload', upload.single('archivo'), (req, res) => {
   if (!req.file) return res.status(400).send('No se subió archivo');
   res.json({ message: 'Archivo subido correctamente', file: req.file });
 });
 
-// Iniciar el servidor
-const PORT = process.env.PORT || 8080;
-httpServer.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en puerto ${PORT}`);
+// Iniciar el servidor DESPUÉS de conectar a MongoDB
+mongoose.connection.once('open', () => {
+  const PORT = process.env.PORT || 8080;
+  httpServer.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en puerto ${PORT}`);
+    console.log(`Accede a http://localhost:${PORT}`);
+  });
+});
+
+// En caso de desconexión
+mongoose.connection.on('disconnected', () => {
+  console.warn('Desconectado de MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('Error en conexión de MongoDB:', err.message);
 });

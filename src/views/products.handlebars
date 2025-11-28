@@ -1,0 +1,426 @@
+<h1>Productos</h1>
+
+<div class="header-section">
+  <a href="/" class="btn btn-home">← Inicio</a>
+</div>
+
+<!-- Filtros -->
+<div class="filters">
+  <h3>Filtros y ordenamiento</h3>
+  <form id="filterForm" method="GET">
+    <div class="filter-group">
+      <label>
+        Categoría:
+        <input type="text" name="query" placeholder="ej: Refrigeradores" />
+      </label>
+    </div>
+    
+    <div class="filter-group">
+      <label>
+        Ordenar por precio:
+        <select name="sort">
+          <option value="">Por categoría (defecto)</option>
+          <option value="asc">Menor a Mayor</option>
+          <option value="desc">Mayor a Menor</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="filter-group">
+      <label>
+        Límite por página:
+        <input type="number" name="limit" value="10" min="1" max="50" />
+      </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+  </form>
+</div>
+
+<!-- Productos agrupados por categoría -->
+{{#each groupedByCategory}}
+  <div class="category-section">
+    <h2 class="category-title">📦 {{@key}}</h2>
+    <div class="products-container">
+      {{#each this}}
+        <div class="product-card">
+          <div class="product-header">
+            <h3>{{this.title}}</h3>
+          </div>
+
+          <div class="product-price">
+            <span class="price">${{this.price}}</span>
+          </div>
+
+          <div class="product-info">
+            <p class="category-label">{{this.category}}</p>
+            <p class="stock-label">Stock: <strong>{{this.stock}} unidades</strong></p>
+          </div>
+
+          <div class="product-actions">
+            <a href="/products/{{this._id}}" class="btn btn-primary btn-block">Ver detalles</a>
+            
+            <div class="add-to-cart-form">
+              <input type="number" class="quantity-input" value="1" min="1" max="{{this.stock}}" data-product-id="{{this._id}}" />
+              <button type="button" class="btn btn-success btn-block add-cart-btn" data-product-id="{{this._id}}">Agregar al carrito</button>
+            </div>
+          </div>
+        </div>
+      {{/each}}
+    </div>
+  </div>
+{{/each}}
+
+<!-- Paginación -->
+<div class="pagination">
+  {{#if hasPrevPage}}
+    <a href="{{prevLink}}" class="btn btn-secondary">← Anterior</a>
+  {{/if}}
+
+  <span class="page-info">Página {{page}} de {{totalPages}}</span>
+
+  {{#if hasNextPage}}
+    <a href="{{nextLink}}" class="btn btn-secondary">Siguiente →</a>
+  {{/if}}
+</div>
+
+<script>
+  // Crear o obtener carrito de sesión/localStorage
+  function getOrCreateCart() {
+    let cartId = localStorage.getItem('cartId');
+    
+    if (!cartId) {
+      // Crear nuevo carrito
+      fetch('/api/carts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          cartId = data.payload._id;
+          localStorage.setItem('cartId', cartId);
+          console.log('✅ Carrito creado:', cartId);
+        }
+      })
+      .catch(err => console.error('Error al crear carrito:', err));
+    }
+    
+    return cartId;
+  }
+
+  // Agregar producto al carrito
+  document.querySelectorAll('.add-cart-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const productId = e.currentTarget.getAttribute('data-product-id');
+      const quantityInput = e.currentTarget.parentElement.querySelector('.quantity-input');
+      const quantity = parseInt(quantityInput.value);
+
+      let cartId = localStorage.getItem('cartId');
+      
+      if (!cartId) {
+        alert('Creando carrito...');
+        cartId = getOrCreateCart();
+        if (!cartId) {
+          alert('Error al crear el carrito');
+          return;
+        }
+        // Esperar un poco para que se cree el carrito
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        cartId = localStorage.getItem('cartId');
+      }
+
+      try {
+        const response = await fetch(`/api/carts/${cartId}/product/${productId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          alert(`✅ ${quantity} unidad(es) agregada(s) al carrito`);
+          console.log('Carrito actualizado:', data.payload);
+        } else {
+          alert('❌ Error al agregar al carrito');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error al agregar al carrito');
+      }
+    });
+  });
+
+  // Inicializar carrito en carga
+  window.addEventListener('load', () => {
+    getOrCreateCart();
+  });
+</script>
+
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f5f5;
+    padding: 20px;
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+  }
+
+  .header-section {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 30px;
+  }
+
+  .btn-home {
+    padding: 10px 20px;
+    background: #95a5a6;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+  }
+
+  .btn-home:hover {
+    background: #7f8c8d;
+  }
+
+  .filters {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .filters h3 {
+    margin-bottom: 15px;
+    color: #333;
+  }
+
+  .filters form {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .filter-group label {
+    font-weight: 600;
+    color: #555;
+  }
+
+  .filters input,
+  .filters select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 150px;
+  }
+
+  .category-section {
+    margin-bottom: 40px;
+  }
+
+  .category-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0;
+    font-size: 1.3em;
+  }
+
+  .products-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .product-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: #ffffff;
+  }
+
+  .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  }
+
+  .product-header {
+    padding: 15px;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .product-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.05em;
+    line-height: 1.3;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+  }
+
+  .product-price {
+    padding: 12px 15px;
+    background: #f9f9f9;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .price {
+    font-size: 1.8em;
+    color: #27ae60;
+    font-weight: bold;
+  }
+
+  .product-info {
+    padding: 12px 15px;
+    border-bottom: 2px solid #f0f0f0;
+    flex-grow: 1;
+  }
+
+  .category-label {
+    margin: 5px 0;
+    color: #666;
+    font-size: 0.9em;
+  }
+
+  .stock-label {
+    margin: 5px 0;
+    color: #555;
+    font-size: 0.95em;
+  }
+
+  .product-actions {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-to-cart-form {
+    display: flex;
+    gap: 8px;
+  }
+
+  .quantity-input {
+    width: 60px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 600;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+
+  .btn-primary {
+    background: #3498db;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #2980b9;
+  }
+
+  .btn-success {
+    background: #27ae60;
+    color: white;
+  }
+
+  .btn-success:hover {
+    background: #229954;
+  }
+
+  .btn-secondary {
+    background: #95a5a6;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #7f8c8d;
+  }
+
+  .btn-block {
+    width: 100%;
+    text-align: center;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 40px 0;
+    align-items: center;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .page-info {
+    padding: 10px 20px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  @media (max-width: 768px) {
+    .products-container {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 15px;
+    }
+
+    .filters form {
+      flex-direction: column;
+    }
+
+    .filter-group {
+      width: 100%;
+    }
+
+    .filters input,
+    .filters select {
+      width: 100%;
+    }
+  }
+</style>

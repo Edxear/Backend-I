@@ -44,6 +44,12 @@
     <div class="products-container">
       {{#each this}}
         <div class="product-card">
+          {{#if this.thumbnails}}
+            <div class="product-image">
+              <img src="{{this.thumbnails.[0]}}" alt="{{this.title}}" />
+            </div>
+          {{/if}}
+
           <div class="product-header">
             <h3>{{this.title}}</h3>
           </div>
@@ -271,6 +277,23 @@
   .product-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  }
+
+  .product-image {
+    width: 100%;
+    height: 220px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 
   .product-header {

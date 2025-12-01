@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<defs>
+  <linearGradient id="g" x1="0" x2="1">
+    <stop offset="0" stop-color="#4F1A12" stop-opacity="0.9"/>
+    <stop offset="1" stop-color="#ffffff" stop-opacity="0.05"/>
+  </linearGradient>
+</defs>
+<rect width="100%" height="100%" fill="url(#g)"/>
+<g transform="translate(40,80)">
+  <rect x="0" y="0" width="720" height="360" rx="14" ry="14" fill="#ffffff" opacity="0.06"/>
+  <text x="20" y="60" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#222" font-weight="700">Batidora KitchenAid 500W</text>
+  <text x="20" y="110" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#333">Batidoras</text>
+  <text x="20" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#27ae60">$120.00</text>
+  <rect x="520" y="260" width="200" height="40" rx="8" fill="#3498db"/>
+  <text x="630" y="288" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#fff" text-anchor="middle">Ver producto</text>
+</g>
+</svg>

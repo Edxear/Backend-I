@@ -69,7 +69,8 @@ route.get('/products', async (req, res) => {
         const products = await ProductModel.find(filter)
             .sort(sortObj)
             .limit(limit)
-            .skip(skip);
+            .skip(skip)
+            .lean();
 
         // Agrupar productos por categoría
         const groupedByCategory = {};
@@ -107,7 +108,7 @@ route.get('/products', async (req, res) => {
  */
 route.get('/products/:pid', async (req, res) => {
     try {
-        const product = await ProductModel.findById(req.params.pid);
+        const product = await ProductModel.findById(req.params.pid).lean();
         if (!product) {
             return res.status(404).render('error', { message: 'Producto no encontrado' });
         }
@@ -123,7 +124,7 @@ route.get('/products/:pid', async (req, res) => {
  */
 route.get('/carts/:cid', async (req, res) => {
     try {
-        const cart = await CartModel.findById(req.params.cid).populate('products.product');
+        const cart = await CartModel.findById(req.params.cid).populate('products.product').lean();
         if (!cart) {
             return res.status(404).render('error', { message: 'Carrito no encontrado' });
         }

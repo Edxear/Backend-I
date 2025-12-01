@@ -34,11 +34,6 @@ mongoose.connect(MONGO_URL, {
   })
   .catch((err) => {
     console.error(' Error de conexión a MongoDB:', err.message);
-    console.error(' Verifica:');
-    console.error('   1. MONGO_URL está correcta en .env');
-    console.error('   2. IP está en whitelist de Atlas (Network Access)');
-    console.error('   3. Usuario y contraseña son correctos');
-    process.exit(1);
   });
 
 
@@ -126,13 +121,7 @@ try {
   console.warn('Ruta Orders no disponible');
 }
 
-try {
-  const { default: AlumnosRoute } = await import('./routes/Alumnos.route.js');
-  app.use('/api/alumnos', AlumnosRoute);
-  console.log('Ruta Alumnos cargada');
-} catch (err) {
-  console.warn('Ruta Alumnos no disponible');
-}
+// La ruta de `Alumnos` fue eliminada; no se intenta importar ni registrar.
 
 app.post('/upload', upload.single('archivo'), (req, res) => {
   if (!req.file) return res.status(400).send('No se subió archivo');

@@ -36,13 +36,11 @@ router.get('/:oid', async (req, res) => {
 /**
  * POST /api/orders
  * Crea una nueva orden a partir de un carrito
- * Body: { cartId, email, shippingAddress? }
  */
 router.post('/', async (req, res) => {
   try {
     const { cartId, email, shippingAddress } = req.body;
 
-    // Validar datos requeridos
     if (!cartId || !email) {
       return res.status(400).json({
         status: 'error',
@@ -50,13 +48,11 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Obtener el carrito
     const cart = await CartModel.findById(cartId).populate('products.product');
     if (!cart) {
       return res.status(404).json({ status: 'error', message: 'Carrito no encontrado' });
     }
 
-    // Validar que el carrito tenga productos
     if (cart.products.length === 0) {
       return res.status(400).json({ status: 'error', message: 'El carrito está vacío' });
     }
